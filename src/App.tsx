@@ -41,14 +41,23 @@ export default function App() {
     setError(null);
 
     try {
+      // Check if we need to open the key selector
+      if (window.aistudio && !(await window.aistudio.hasSelectedApiKey()) && !process.env.GEMINI_API_KEY) {
+        await window.aistudio.openSelectKey();
+        // After opening, we try to proceed, but the user might need to click again
+        setLoading(false);
+        return;
+      }
+
       const apiKey = process.env.GEMINI_API_KEY;
       if (!apiKey || apiKey === "MY_GEMINI_API_KEY") {
-        throw new Error("API_KEY_MISSING");
+        // If still missing, show a specific error with a button
+        setError("API_KEY_REQUIRED");
+        setLoading(false);
+        return;
       }
 
       const ai = new GoogleGenAI({ apiKey });
-      // Using gemini-1.5-flash for better stability in some regions, 
-      // but you can change it back to gemini-3-flash-preview if preferred.
       const modelName = "gemini-1.5-flash"; 
       
       const mimeType = image.split(';')[0].split(':')[1];
@@ -84,8 +93,8 @@ export default function App() {
       setResult(response.text);
     } catch (err: any) {
       console.error("Plant Identification Error:", err);
-      if (err.message === "API_KEY_MISSING") {
-        setError("مفتاح البرمجة (API Key) غير متوفر. يرجى إضافته في إعدادات Secrets في AI Studio.");
+      if (err.message?.includes("API key") || err.status === 403) {
+        setError("API_KEY_REQUIRED");
       } else if (err.message?.includes("quota") || err.status === 429) {
         setError("تم تجاوز الحد المسموح به من الطلبات. يرجى الانتظار دقيقة والمحاولة مرة أخرى.");
       } else {
@@ -93,6 +102,13 @@ export default function App() {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleOpenKeySelector = async () => {
+    if (window.aistudio) {
+      await window.aistudio.openSelectKey();
+      setError(null);
     }
   };
 
@@ -212,7 +228,25 @@ export default function App() {
 
           {/* Results Section */}
           <AnimatePresence>
-            {error && (
+            {error === "API_KEY_REQUIRED" && (
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                className="bg-amber-500/10 border border-amber-500/20 text-amber-400 p-6 rounded-3xl text-center space-y-4"
+              >
+                <p className="text-lg font-bold">مفتاح البرمجة (API Key) مطلوب للتحليل</p>
+                <p className="text-sm opacity-80">يرجى اختيار مفتاح صالح من حسابك لتفعيل ميزة التعرف على النباتات.</p>
+                <button 
+                  onClick={handleOpenKeySelector}
+                  className="px-6 py-2 bg-amber-500 text-black font-bold rounded-full hover:bg-amber-400 transition-colors"
+                >
+                  إعداد مفتاح البرمجة الآن
+                </button>
+              </motion.div>
+            )}
+
+            {error && error !== "API_KEY_REQUIRED" && (
               <motion.div 
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}

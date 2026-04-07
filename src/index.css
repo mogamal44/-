@@ -1,0 +1,17 @@
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Cairo", ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  .markdown-body h1 { @apply text-2xl font-bold mb-4 text-green-400; }
+  .markdown-body h2 { @apply text-xl font-bold mb-3 text-green-400 mt-6; }
+  .markdown-body h3 { @apply text-lg font-bold mb-2 text-green-300 mt-4; }
+  .markdown-body p { @apply mb-4 text-gray-300 leading-relaxed; }
+  .markdown-body ul { @apply list-disc list-inside mb-4 space-y-2 text-gray-300; }
+  .markdown-body ol { @apply list-decimal list-inside mb-4 space-y-2 text-gray-300; }
+  .markdown-body li { @apply mr-4; }
+  .markdown-body strong { @apply text-green-400 font-semibold; }
+}

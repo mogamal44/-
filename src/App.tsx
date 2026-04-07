@@ -9,9 +9,6 @@ import { Upload, Camera, Leaf, Info, Loader2, Sprout, Sun, Utensils, GraduationC
 import Markdown from 'react-markdown';
 import { motion, AnimatePresence } from 'motion/react';
 
-// Initialize Gemini AI
-const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
-
 interface PlantData {
   name: string;
   details: string;
@@ -44,7 +41,17 @@ export default function App() {
     setError(null);
 
     try {
-      const model = "gemini-3-flash-preview";
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey || apiKey === "MY_GEMINI_API_KEY") {
+        throw new Error("API_KEY_MISSING");
+      }
+
+      const ai = new GoogleGenAI({ apiKey });
+      // Using gemini-1.5-flash for better stability in some regions, 
+      // but you can change it back to gemini-3-flash-preview if preferred.
+      const modelName = "gemini-1.5-flash"; 
+      
+      const mimeType = image.split(';')[0].split(':')[1];
       const base64Data = image.split(',')[1];
       
       const prompt = `
@@ -60,20 +67,30 @@ export default function App() {
         استخدم عناوين واضحة ونقاط. تأكد من استخدام العناوين المذكورة أعلاه بالضبط.
       `;
 
-      const response = await genAI.models.generateContent({
-        model: model,
+      const response = await ai.models.generateContent({
+        model: modelName,
         contents: {
           parts: [
             { text: prompt },
-            { inlineData: { mimeType: "image/jpeg", data: base64Data } }
+            { inlineData: { mimeType: mimeType, data: base64Data } }
           ]
         }
       });
 
-      setResult(response.text || "لم يتم العثور على نتائج.");
-    } catch (err) {
-      console.error(err);
-      setError("حدث خطأ أثناء تحليل الصورة. يرجى المحاولة مرة أخرى.");
+      if (!response.text) {
+        throw new Error("EMPTY_RESPONSE");
+      }
+
+      setResult(response.text);
+    } catch (err: any) {
+      console.error("Plant Identification Error:", err);
+      if (err.message === "API_KEY_MISSING") {
+        setError("مفتاح البرمجة (API Key) غير متوفر. يرجى إضافته في إعدادات Secrets في AI Studio.");
+      } else if (err.message?.includes("quota") || err.status === 429) {
+        setError("تم تجاوز الحد المسموح به من الطلبات. يرجى الانتظار دقيقة والمحاولة مرة أخرى.");
+      } else {
+        setError("حدث خطأ أثناء تحليل الصورة. يرجى التأكد من أن الصورة واضحة وأنك متصل بالإنترنت.");
+      }
     } finally {
       setLoading(false);
     }
